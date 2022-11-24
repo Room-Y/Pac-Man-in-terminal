@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/danicat/simpleansi"
 )
@@ -24,6 +25,7 @@ var ghosts []*sprite
 var score int
 var numDots int
 var lives = 1
+var err_or_end_tag string
 
 func main() {
 	// initialize game
@@ -37,20 +39,31 @@ func main() {
 		return
 	}
 
+	// process input (async)
+	input := make(chan string)
+	go func(ch chan<- string) {
+		for {
+			inn, err := readInput()
+			if err != nil {
+				log.Println("error reading input:", err)
+				err_or_end_tag = "err"
+			}
+			ch <- inn
+		}
+	}(input)
+
 	// game loop
 	for {
-		// update screen
-		printScreen()
-
-		// process input
-		input, err := readInput()
-		if err != nil {
-			log.Print("error reading input:", err)
-			break
+		// process movement
+		select {
+		case inp := <-input:
+			if inp == "ESC" {
+				err_or_end_tag = "ESC"
+			}
+			movePlayer(inp)
+		default:
 		}
 
-		// process movement
-		movePlayer(input)
 		moveGhosts()
 
 		// process collisions
@@ -60,10 +73,27 @@ func main() {
 			}
 		}
 
+		// update screen
+		printScreen()
+
 		// check game over
-		if input == "ESC" || numDots == 0 || lives <= 0 {
+		if err_or_end_tag != "" {
+			log.Println("err_or_end_tag:", err_or_end_tag)
 			break
 		}
+		if numDots == 0 {
+			log.Println("numDots:", numDots)
+			log.Println("You Win!")
+			break
+		}
+		if lives <= 0 {
+			log.Println("lives:", lives)
+			log.Println("Your lives over!")
+			break
+		}
+
+		// repeat
+		time.Sleep(200 * time.Millisecond)
 
 		// Temp: break infinite loop
 		// fmt.Println("Hello, Pac Go!")
