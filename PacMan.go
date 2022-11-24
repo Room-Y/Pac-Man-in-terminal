@@ -16,6 +16,11 @@ import (
 	"github.com/danicat/simpleansi"
 )
 
+var (
+	configFile = flag.String("config-file", "config.json", "path to custom configuration file")
+	mazeFile   = flag.String("maze-file", "maze01.txt", "path to a custom maze file")
+)
+
 type sprite struct {
 	row      int
 	col      int
@@ -33,11 +38,6 @@ type Config struct {
 	Space    string `json:"space"`
 	UseEmoji bool   `json:"use_emoji"`
 }
-
-var (
-	configFile = flag.String("config-file", "config.json", "path to custom configuration file")
-	mazeFile   = flag.String("maze-file", "maze01.txt", "path to a custom maze file")
-)
 
 var (
 	cfg  Config
@@ -101,9 +101,12 @@ func main() {
 
 		moveGhosts()
 
+		// update screen
+		printScreen()
+
 		// process collisions
 		for _, g := range ghosts {
-			if player.row == g.col && player.col == g.col {
+			if player.row == g.row && player.col == g.col {
 				lives--
 				if lives > 0 {
 					moveCursor(player.row, player.col)
@@ -115,9 +118,6 @@ func main() {
 				break
 			}
 		}
-
-		// update screen
-		printScreen()
 
 		// check game over
 		if err_or_end_tag != "" {
@@ -139,7 +139,7 @@ func main() {
 		}
 
 		// repeat
-		time.Sleep(300 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 
 		// Temp: break infinite loop
 		// fmt.Println("Hello, Pac Go!")
