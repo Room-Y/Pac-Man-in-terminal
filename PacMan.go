@@ -21,6 +21,10 @@ type sprite struct {
 var player sprite
 var ghosts []*sprite
 
+var score int
+var numDots int
+var lives = 1
+
 func main() {
 	// initialize game
 	initialise() //启用stty的 cbreak 模式关闭 echo
@@ -50,9 +54,14 @@ func main() {
 		moveGhosts()
 
 		// process collisions
+		for _, g := range ghosts {
+			if player == *g {
+				lives--
+			}
+		}
 
 		// check game over
-		if input == "ESC" {
+		if input == "ESC" || numDots == 0 || lives <= 0 {
 			break
 		}
 
@@ -81,6 +90,8 @@ func loadMaze(file string) error {
 				player = sprite{row, col}
 			case 'G':
 				ghosts = append(ghosts, &sprite{row, col})
+			case '.':
+				numDots++
 			}
 		}
 	}
@@ -94,6 +105,8 @@ func printScreen() {
 		for _, chr := range line {
 			switch chr {
 			case '#':
+				fallthrough
+			case '.':
 				fmt.Printf("%c", chr)
 			default:
 				fmt.Print(" ")
@@ -114,6 +127,7 @@ func printScreen() {
 
 	//move cursor outside of maze drawing area
 	simpleansi.MoveCursor(len(maze)+1, 0)
+	fmt.Println("Score:", score, "\tLives:", lives)
 }
 
 func initialise() {
@@ -199,6 +213,12 @@ func makeMove(oldRow, oldCol int, dir string) (newRow, newCol int) {
 
 func movePlayer(dir string) {
 	player.row, player.col = makeMove(player.row, player.col, dir)
+	switch maze[player.row][player.col] {
+	case '.':
+		numDots--
+		score++
+		maze[player.row] = maze[player.row][0:player.col] + " " + maze[player.row][player.col+1:]
+	}
 }
 
 func drawDirection() string {
