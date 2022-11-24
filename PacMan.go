@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
@@ -29,32 +30,41 @@ type Config struct {
 	UseEmoji bool   `json:"use_emoji"`
 }
 
-var cfg Config
+var (
+	configFile = flag.String("config-file", "config.json", "path to custom configuration file")
+	mazeFile   = flag.String("maze-file", "maze01.txt", "path to a custom maze file")
+)
 
-var maze []string
+var (
+	cfg  Config
+	maze []string
 
-var player sprite
-var ghosts []*sprite
+	player sprite
+	ghosts []*sprite
 
-var score int
-var numDots int
-var lives = 1
-var err_or_end_tag string
+	score          int
+	numDots        int
+	lives          = 1
+	err_or_end_tag string
+)
 
 func main() {
+	// load flag
+	flag.Parse()
+
 	// initialize game
 	initialise() //启用stty的 cbreak 模式关闭 echo
 	defer cleanup()
 
 	// load resources
-	err := loadMaze("maze01.txt") //载入地图信息
+	err := loadMaze(*mazeFile) //载入地图信息
 	if err != nil {
 		log.Println("failed to load maze:", err)
 		return
 	}
 
 	// load json config
-	err = loadConfig("config.json")
+	err = loadConfig(*configFile)
 	if err != nil {
 		log.Println("failed to load configuration:", err)
 		return
