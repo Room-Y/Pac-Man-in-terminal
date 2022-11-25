@@ -5,5 +5,7 @@
     "dot": ".",
     "pill": "X",
     "space": " ",
-    "use_emoji": false
+    "use_emoji": false,
+    "ghost_blue": "B",
+    "pill_duration": 10
 }

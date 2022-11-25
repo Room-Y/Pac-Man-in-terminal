@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/danicat/simpleansi"
@@ -29,14 +30,28 @@ type sprite struct {
 }
 
 type Config struct {
-	Player   string `json:"player"`
-	Ghost    string `json:"ghost"`
-	Wall     string `json:"wall"`
-	Dot      string `json:"dot"`
-	Pill     string `json:"pill"`
-	Death    string `json:"death"`
-	Space    string `json:"space"`
-	UseEmoji bool   `json:"use_emoji"`
+	Player       string        `json:"player"`
+	Ghost        string        `json:"ghost"`
+	Wall         string        `json:"wall"`
+	Dot          string        `json:"dot"`
+	Pill         string        `json:"pill"`
+	Death        string        `json:"death"`
+	Space        string        `json:"space"`
+	UseEmoji     bool          `json:"use_emoji"`
+	GhostBlue    string        `json:"ghost_blue"`
+	PillDuration time.Duration `json:"pill_duration"`
+}
+
+type GhostStatus string
+
+const (
+	GhostStatusNormal GhostStatus = "Normal"
+	GhostStatusBlue   GhostStatus = "Blue"
+)
+
+type ghost struct {
+	position sprite
+	status   GhostStatus
 }
 
 var (
@@ -44,7 +59,7 @@ var (
 	maze []string
 
 	player sprite
-	ghosts []*sprite
+	ghosts []*ghost
 
 	score          int
 	numDots        int
@@ -106,7 +121,7 @@ func main() {
 
 		// process collisions
 		for _, g := range ghosts {
-			if player.row == g.row && player.col == g.col {
+			if player.row == g.position.row && player.col == g.position.col {
 				lives--
 				if lives > 0 {
 					moveCursor(player.row, player.col)
@@ -165,7 +180,7 @@ func loadMaze(file string) error {
 			case 'P':
 				player = sprite{row, col, row, col}
 			case 'G':
-				ghosts = append(ghosts, &sprite{row, col, row, col})
+				ghosts = append(ghosts, &ghost{sprite{row, col, row, col}, GhostStatusNormal})
 			case '.':
 				numDots++
 			}
@@ -199,8 +214,12 @@ func printScreen() {
 
 	// print ghosts
 	for _, g := range ghosts {
-		moveCursor(g.row, g.col)
-		fmt.Print(cfg.Ghost)
+		moveCursor(g.position.row, g.position.col)
+		if g.status == GhostStatusNormal {
+			fmt.Print(cfg.Ghost)
+		} else if g.status == GhostStatusBlue {
+			fmt.Print(cfg.GhostBlue)
+		}
 	}
 
 	//move cursor outside of maze drawing area
@@ -310,6 +329,7 @@ func movePlayer(dir string) {
 	case 'X':
 		score += 10
 		removeDot(player.row, player.col)
+		go processPill()
 	}
 }
 
@@ -327,7 +347,7 @@ func drawDirection() string {
 func moveGhosts() {
 	for _, g := range ghosts {
 		dir := drawDirection()
-		g.row, g.col = makeMove(g.row, g.col, dir)
+		g.position.row, g.position.col = makeMove(g.position.row, g.position.col, dir)
 	}
 }
 
@@ -361,4 +381,32 @@ func getLivesAsEmoji() string {
 		buf.WriteString(cfg.Player)
 	}
 	return buf.String()
+}
+
+var pillTimer *time.Timer
+var pillMx sync.Mutex
+
+func processPill() {
+	pillMx.Lock()
+	updateGhosts(ghosts, GhostStatusBlue)
+	if pillTimer != nil {
+		pillTimer.Stop()
+	}
+	pillTimer = time.NewTimer(time.Second * cfg.PillDuration)
+	pillMx.Unlock()
+	<-pillTimer.C
+	pillMx.Lock()
+	pillTimer.Stop()
+	updateGhosts(ghosts, GhostStatusNormal)
+	pillMx.Unlock()
+}
+
+var ghostStatusMx sync.RWMutex
+
+func updateGhosts(ghosts []*ghost, ghostStatus GhostStatus) {
+	ghostStatusMx.Lock()
+	defer ghostStatusMx.Unlock()
+	for _, g := range ghosts {
+		g.status = ghostStatus
+	}
 }

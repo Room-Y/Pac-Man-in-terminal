@@ -6,5 +6,7 @@
     "pill": "🍹",
     "death": "💀",
     "space": "  ",
-    "use_emoji": true
+    "use_emoji": true,
+    "ghost_blue": "🥶",
+    "pill_duration": 10
 }
