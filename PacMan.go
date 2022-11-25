@@ -31,6 +31,7 @@ type sprite struct {
 
 type Config struct {
 	Player       string        `json:"player"`
+	Player_Eat   string        `json:"player_eat"`
 	Ghost        string        `json:"ghost"`
 	Wall         string        `json:"wall"`
 	Dot          string        `json:"dot"`
@@ -49,6 +50,8 @@ const (
 	GhostStatusBlue   GhostStatus = "Blue"
 )
 
+var player_status GhostStatus
+
 type ghost struct {
 	position sprite
 	status   GhostStatus
@@ -66,6 +69,9 @@ var (
 	lives          = 3
 	err_or_end_tag string
 )
+
+var pillTimer *time.Timer
+var pillMx sync.Mutex
 
 func main() {
 	// load flag
@@ -120,15 +126,20 @@ func main() {
 		printScreen()
 
 		// process collisions
-		for _, g := range ghosts {
+		for i, g := range ghosts {
 			if player.row == g.position.row && player.col == g.position.col {
-				lives--
-				if lives > 0 {
-					moveCursor(player.row, player.col)
-					fmt.Print(cfg.Death)
-					moveCursor(len(maze)+2, 0)
-					time.Sleep(1000 * time.Millisecond) //dramatic pause before resetting player position
-					player.row, player.col = player.startRow, player.startCol
+				if player_status == GhostStatusNormal {
+					lives--
+					if lives > 0 {
+						moveCursor(player.row, player.col)
+						fmt.Print(cfg.Death)
+						moveCursor(len(maze)+2, 0)
+						time.Sleep(1000 * time.Millisecond) //dramatic pause before resetting player position
+						player.row, player.col = player.startRow, player.startCol
+						player_status = GhostStatusNormal
+					}
+				} else {
+					ghosts = append(ghosts[:i], ghosts[i+1:]...)
 				}
 				break
 			}
@@ -186,6 +197,7 @@ func loadMaze(file string) error {
 			}
 		}
 	}
+	player_status = GhostStatusNormal
 
 	return nil
 }
@@ -210,7 +222,11 @@ func printScreen() {
 
 	// print player
 	moveCursor(player.row, player.col)
-	fmt.Print(cfg.Player)
+	if player_status == GhostStatusNormal {
+		fmt.Print(cfg.Player)
+	} else if player_status == GhostStatusBlue {
+		fmt.Print(cfg.Player_Eat)
+	}
 
 	// print ghosts
 	for _, g := range ghosts {
@@ -383,9 +399,6 @@ func getLivesAsEmoji() string {
 	return buf.String()
 }
 
-var pillTimer *time.Timer
-var pillMx sync.Mutex
-
 func processPill() {
 	pillMx.Lock()
 	updateGhosts(ghosts, GhostStatusBlue)
@@ -409,4 +422,5 @@ func updateGhosts(ghosts []*ghost, ghostStatus GhostStatus) {
 	for _, g := range ghosts {
 		g.status = ghostStatus
 	}
+	player_status = ghostStatus
 }

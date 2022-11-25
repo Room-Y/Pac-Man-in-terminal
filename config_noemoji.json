@@ -1,5 +1,6 @@
 {
     "player": "P",
+    "player_eat": "E",
     "ghost": "G",
     "wall": "#",
     "dot": ".",
